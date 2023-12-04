@@ -1,207 +1,78 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from read_conference_data import *
+from read_schedule_data import *
+import re
+import pprint
+
+# def victory_multiplier(team_1_rank, team_2_rank):
+#     return 1
 
 def victory_multiplier(team_1_rank, team_2_rank):
-    # return 1 + ((team_1_rank) - team_2_rank) / max(team_1_rank, team_2_rank)
-    return 1 + ((team_1_rank) - team_2_rank) / 14
+    return 1 + ((team_1_rank) - team_2_rank) / max(team_1_rank, team_2_rank)
 
-# ACC 14 x 2 matrix, with team name and conference ranking
-acc = [
-       ['Clemson', 6],
-       ['Florida State', 1],
-       ['Louisville', 2],
-       ['NC State', 3],
-       ['Wake Forest', 14],
-       ['Syracuse', 11],
-       ['Boston College', 10],
-       ['Virginia Tech', 5],
-       ['Miami', 9],
-       ['Georgia Tech', 4],
-       ['Virginia', 13],
-       ['Duke', 8],
-       ['North Carolina', 7],
-       ['Pittsburgh', 12]
-]
+# def victory_multiplier(team_1_rank, team_2_rank):
+#     return 1 + ((team_1_rank) - team_2_rank) / 14
 
-# Big 10 14 x 2 matrix, with team name and conference ranking
-b10 = [
-    ['Ohio State', 2],
-    ['Penn State', 3],
-    ['Michigan State', 13],
-    ['Michigan', 1],
-    ['Maryland', 7],
-    ['Rutgers', 8],
-    ['Indiana', 14],
-    ['Purdue', 12],
-    ['Wisconsin', 6],
-    ['Iowa', 4],
-    ['Northwestern', 5],
-    ['Minnesota', 10],
-    ['Nebraska',11 ],
-    ['Illinois', 9]
-]
+# read the conference data
+conference_data = read_conference_data()
 
-# SEC 14 x 2 matrix, with team name and conference ranking
-sec = [
-    ['Alabama', 1],
-    ['Auburn', 8],
-    ['LSU', 4],
-    ['Texas A&M', 6],
-    ['Mississippi State', 12],
-    ['Ole Miss', 3],
-    ['Arkansas', 13],
-    ['Missouri', 5],
-    ['Georgia', 2],
-    ['Florida',  9],
-    ['South Carolina',  11],
-    ['Tennessee',  7],
-    ['Kentucky',  10],
-    ['Vanderbilt', 14]
-]
+matchups = read_schedule_data()
 
-# Big 12 10 x 2 matrix, with team name and conference ranking
-b12 = [
-    ['Oklahoma', 0],
-    ['Oklahoma State', 0],
-    ['TCU', 0],
-    ['Kansas State', 0],
-    ['West Virginia', 0],
-    ['Texas', 0],
-    ['Iowa State', 0],
-    ['Baylor', 0],
-    ['Texas Tech', 0],
-    ['Kansas', 0]
-]
+score_results = {}
 
-# Pac 12 12 x 2 matrix, with team name and conference ranking
-p12 = [
-    ['Washington', 0],
-    ['Washington State', 0],
-    ['Oregon', 0],
-    ['Stanford', 0],
-    ['California', 0],
-    ['Oregon State', 0],
-    ['USC', 0],
-    ['UCLA', 0],
-    ['Utah', 0],
-    ['Arizona', 0],
-    ['Arizona State', 0],
-    ['Colorado', 0]
-]
-
-# match ups 1 x 3 matrix, with team 1, team 2, and winner
-matchups = [
-    ['Louisville', 'Kentucky', 'Kentucky'],
-    ['Florida State', 'Florida', 'Florida State'],
-    ['Clemson', 'South Carolina', 'Clemson'],
-    ['Georgia Tech', 'Georgia', 'Georgia'],
-    # ['Louisville', 'Indiana', 'Louisville'],
-    # ['North Carolina', 'Minnesota', 'North Carolina'],
-    # ['Duke', 'Northwestern', 'Duke'],
-    # ['Virginia Tech', 'Rutgers', 'Rutgers'],
-    ['Georgia Tech', 'Ole Miss', 'Ole Miss'],
-    # ['Syracuse', 'Purdue', 'Syracuse'],
-    # ['Virginia', 'Maryland', 'Maryland'],
-    ['Wake Forest', 'Vanderbilt', 'Wake Forest'],
-    # ['Virginia Tech', 'Purdue', 'Purdue'],
-    ['Miami', 'Texas A&M', 'Miami'],
-    ['Florida State', 'LSU', 'Florida State'],
-    ['Virginia', 'Tennessee', 'Tennessee'],
-    ['North Carolina', 'South Carolina', 'North Carolina']
-]
-
-
-acc_record = 0.0
-b10_record = 0.0
-sec_record = 0.0
-# for each match up, find the winner and add a win to their conference record
+# for each matchup, find the conference of each team, and add an entry for the conference matchup column
 for i in range(len(matchups)):
-    team1 = matchups[i][0]
-    team2 = matchups[i][1]
-    result = matchups[i][2]
+    winning_team = matchups.iloc[i]['Winner']
+    losing_team = matchups.iloc[i]['Loser']
 
-    if result == team1:
-        winner = team1
-        loser = team2
-    if result == team2:
-        winner = team2
-        loser = team1
+    # regex to strip away '(x)' from the beginning of the team name
+    winning_team = re.sub(r'^\(\d+\)\s', '', winning_team)
+    losing_team = re.sub(r'^\(\d+\)\s', '', losing_team)
 
+    winning_conference = None
+    losing_conference = None
+    winning_ranking = None
+    losing_ranking = None
+    for conference in conference_data:
+        if winning_team in conference_data[conference]['School'].values:
+            winning_conference = conference
+            winning_ranking = conference_data[conference][conference_data[conference]['School'] == winning_team].iloc[0]['Rank']
+        if losing_team in conference_data[conference]['School'].values:
+            losing_conference = conference
+            losing_ranking = conference_data[conference][conference_data[conference]['School'] == losing_team].iloc[0]['Rank']
 
-    # find the teams in the conference matrices and replace the team name with the team name and conference ranking
-    for j in range(len(acc)):
-        if winner == acc[j][0]:
-            winner = acc[j]
-        if loser == acc[j][0]:
-            loser = acc[j]
-    for j in range(len(b10)):
-        if winner == b10[j][0]:
-            winner = b10[j]
-        if loser == b10[j][0]:
-            loser = b10[j]
-    for j in range(len(sec)):
-        if winner == sec[j][0]:
-            winner = sec[j]
-        if loser == sec[j][0]:
-            loser = sec[j]
+    matchups.at[i, 'Winning Conference'] = winning_conference
+    matchups.at[i, 'Losing Conference'] = losing_conference
+    matchups.at[i, 'Winning Conference Ranking'] = winning_ranking
+    matchups.at[i, 'Losing Conference Ranking'] = losing_ranking
 
-    print('winner')
-    print(winner)
-    print('loser')
-    print(loser)
+matchups.dropna(inplace=True)
 
-    victory_score = victory_multiplier(winner[1], loser[1])
-    print(victory_score)
-    for j in range(len(acc)):
-        if winner[0] == acc[j][0]:
-            acc_record += victory_score
-    for j in range(len(b10)):
-        if winner[0] == b10[j][0]:
-            b10_record += victory_score
-    for j in range(len(sec)):
-        if winner[0] == sec[j][0]:
-            sec_record += victory_score
+# update score results using the victory multiplier function
+for i in range(len(matchups)):
+    winning_conference = matchups.iloc[i]['Winning Conference']
+    losing_conference = matchups.iloc[i]['Losing Conference']
+    winning_ranking = matchups.iloc[i]['Winning Conference Ranking']
+    losing_ranking = matchups.iloc[i]['Losing Conference Ranking']
 
+    matchup = sorted(set([winning_conference, losing_conference]))
+    if matchup[0] == matchup[-1]:
+        continue
 
-# print the records
-print('ACC: ' + str(acc_record))
-print('B10: ' + str(b10_record))
-print('SEC: ' + str(sec_record))
+    matchup_string = matchup[0] + '-' + matchup[1]
 
-# plot a sample graph of the victory multiplier function
-# with the x axis being the difference in conference ranking
-# and the y axis being the victory multiplier
-a = np.linspace(1, 14, 14)
-b = np.linspace(1, 14, 14)
+    if matchup_string not in score_results:
+        score_results[matchup_string] = "0-0"
 
-c = np.zeros((len(a), len(b)))
-for i in range(len(a)):
-    for j in range(len(b)):
-        c[i][j] = victory_multiplier(a[i], b[j])
-# print(c)
+    # parse the previous score matchup from the score results string
+    score_matchup = score_results[matchup_string].split('-')
+    index = matchup.index(winning_conference)
 
-# plot c
-plt.imshow(c, cmap='hot')
+    victory_score = victory_multiplier(winning_ranking, losing_ranking)
 
-plt.xlabel('Winner Conference Ranking')
-plt.ylabel('Loser Conference Ranking')
-plt.title('Victory Multiplier Function')
-plt.show()
+    score_matchup[index] = "{:.3f}".format(float(score_matchup[index]) + victory_score)
 
-# plot a sample graph of the victory multiplier function for a #1 team vs all the other matchups
-# with x being the conference ranking of the other team
-# and y being the victory multiplier
-a = np.linspace(1, 14, 14)
+    score_results[matchup_string] = score_matchup[0] + '-' + score_matchup[-1]
 
-c = np.zeros((len(a), 1))
-for i in range(len(a)):
-    c[i][0] = victory_multiplier(1, a[i])
-
-# print(c)
-
-# plot c
-plt.plot(a, c)
-plt.xlabel('Conference Ranking of Other Team')
-plt.ylabel('Victory Multiplier')
-plt.title('Victory Multiplier Function for #1 Team')
-plt.show()
+pprint.pprint(score_results)
